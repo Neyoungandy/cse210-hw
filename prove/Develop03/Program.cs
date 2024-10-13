@@ -6,11 +6,11 @@ public class Program
 {
     static void Main(string[] args)
     {
-        // Create a reference and scripture
+        // Creating a reference and scripture
         Reference reference = new Reference("Proverbs", 3, 5, 6);
         Scripture scripture = new Scripture(reference, "Trust in the Lord with all thine heart and lean not unto thine own understanding.");
 
-        // Run the scripture memorization process
+        // Here, running the scripture memorization process
         while (!scripture.IsFullyHidden())
         {
             Console.Clear();
