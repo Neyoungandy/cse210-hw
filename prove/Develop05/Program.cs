@@ -176,6 +176,35 @@ public class ListingActivity : Activity
     }
 }
 
+// Derived Class: GratitudeActivity
+public class GratitudeActivity : Activity
+{
+    // Constructor
+    public GratitudeActivity() : base("Gratitude Activity", "This activity helps you cultivate an attitude of gratitude.")
+    {
+    }
+
+    // Method for running the gratitude activity
+    public void RunActivity()
+    {
+        StartActivity();
+
+        Console.WriteLine("Think of things you are grateful for:");
+        List<string> userGratitude = new List<string>();
+
+        DateTime endTime = DateTime.Now.AddSeconds(GetDurationTime());
+
+        while (DateTime.Now < endTime)
+        {
+            Console.Write("Gratitude Item: ");
+            userGratitude.Add(Console.ReadLine());
+        }
+
+        Console.WriteLine($"You listed {userGratitude.Count} things you are grateful for.");
+        EndActivity();
+    }
+}
+
 // Main Program
 class Program
 {
@@ -190,7 +219,8 @@ class Program
             Console.WriteLine("1. Breathing Activity");
             Console.WriteLine("2. Reflecting Activity");
             Console.WriteLine("3. Listing Activity");
-            Console.WriteLine("4. Exit");
+            Console.WriteLine("4. Gratitude Activity"); // New option added
+            Console.WriteLine("5. Exit");
             Console.Write("Choose an activity: ");
             string choice = Console.ReadLine();
 
@@ -212,6 +242,11 @@ class Program
                     break;
 
                 case "4":
+                    GratitudeActivity gratitudeActivity = new GratitudeActivity(); // Instantiate the new class
+                    gratitudeActivity.RunActivity(); // Call the run method
+                    break;
+
+                case "5":
                     exit = true;
                     break;
 
