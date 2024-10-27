@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 class Program
 {
@@ -12,16 +11,18 @@ class Program
     }
 }
 
-// Manages goals, scores, and logs events
 public class GoalManager
 {
     private List<Goal> _goals = new List<Goal>();
     private int _score;
-    private List<string> _log = new List<string>();
+    private int _level;
+    private int _experiencePoints;
 
     public GoalManager()
     {
         _score = 0;
+        _level = 1;
+        _experiencePoints = 0;
     }
 
     public void Start()
@@ -30,14 +31,13 @@ public class GoalManager
         while (running)
         {
             Console.WriteLine("\nEternal Quest Program");
-            Console.WriteLine($"Score: {_score} points");
+            Console.WriteLine($"Level: {_level} | Experience: {_experiencePoints}");
             Console.WriteLine("1. Create New Goal");
             Console.WriteLine("2. List Goals");
             Console.WriteLine("3. Save Goals");
             Console.WriteLine("4. Load Goals");
             Console.WriteLine("5. Record Event");
-            Console.WriteLine("6. View Event Log");
-            Console.WriteLine("7. Quit");
+            Console.WriteLine("6. Quit");
             Console.Write("Choose an option: ");
             string choice = Console.ReadLine();
 
@@ -47,7 +47,7 @@ public class GoalManager
                     CreateGoal();
                     break;
                 case "2":
-                    ListGoals();
+                    ListGoalDetails();
                     break;
                 case "3":
                     SaveGoals();
@@ -59,9 +59,6 @@ public class GoalManager
                     RecordEvent();
                     break;
                 case "6":
-                    ViewEventLog();
-                    break;
-                case "7":
                     running = false;
                     Console.WriteLine("Exiting the program. Goodbye!");
                     break;
@@ -78,6 +75,8 @@ public class GoalManager
         Console.WriteLine("1. Simple Goal");
         Console.WriteLine("2. Eternal Goal");
         Console.WriteLine("3. Checklist Goal");
+        Console.WriteLine("4. Negative Goal"); // New goal type
+        Console.WriteLine("5. Large Goal"); // New goal type for larger goals
         string choice = Console.ReadLine();
 
         Console.Write("Enter goal name: ");
@@ -104,13 +103,23 @@ public class GoalManager
                 int bonus = int.Parse(Console.ReadLine());
                 _goals.Add(new ChecklistGoal(name, description, points, target, bonus));
                 break;
+            case "4":
+                Console.Write("Enter penalty points: ");
+                int penalty = int.Parse(Console.ReadLine());
+                _goals.Add(new NegativeGoal(name, description, points, penalty));
+                break;
+            case "5":
+                Console.Write("Enter target points: ");
+                int targetPoints = int.Parse(Console.ReadLine());
+                _goals.Add(new LargeGoal(name, description, points, targetPoints));
+                break;
             default:
                 Console.WriteLine("Invalid choice. Goal creation failed.");
                 break;
         }
     }
 
-    public void ListGoals()
+    public void ListGoalDetails()
     {
         Console.WriteLine("Goals:");
         foreach (var goal in _goals)
@@ -126,7 +135,9 @@ public class GoalManager
 
         using (StreamWriter writer = new StreamWriter(filename))
         {
-            writer.WriteLine($"Score:{_score}"); // Save the current score
+            writer.WriteLine(_score);
+            writer.WriteLine(_level);
+            writer.WriteLine(_experiencePoints);
             foreach (var goal in _goals)
             {
                 writer.WriteLine(goal.GetStringRepresentation());
@@ -143,9 +154,12 @@ public class GoalManager
         if (File.Exists(filename))
         {
             _goals.Clear();
+
             using (StreamReader reader = new StreamReader(filename))
             {
-                _score = int.Parse(reader.ReadLine().Split(':')[1]); // Load the score
+                _score = int.Parse(reader.ReadLine());
+                _level = int.Parse(reader.ReadLine());
+                _experiencePoints = int.Parse(reader.ReadLine());
 
                 string line;
                 while ((line = reader.ReadLine()) != null)
@@ -172,6 +186,16 @@ public class GoalManager
                         int bonus = int.Parse(parts[6]);
                         _goals.Add(new ChecklistGoal(name, description, points, target, bonus, amountCompleted));
                     }
+                    else if (goalType == "NegativeGoal")
+                    {
+                        int penalty = int.Parse(parts[4]);
+                        _goals.Add(new NegativeGoal(name, description, points, penalty));
+                    }
+                    else if (goalType == "LargeGoal")
+                    {
+                        int targetPoints = int.Parse(parts[4]);
+                        _goals.Add(new LargeGoal(name, description, points, targetPoints));
+                    }
                 }
             }
             Console.WriteLine("Goals successfully loaded!");
@@ -197,46 +221,46 @@ public class GoalManager
             Goal goal = _goals[choice - 1];
             goal.RecordEvent();
             _score += goal.Points;
-            _log.Add($"{DateTime.Now}: {goal.Name} recorded event. +{goal.Points} points. Total Score: {_score}");
-            Console.WriteLine("Event recorded!");
+            _experiencePoints += goal.Points; // Add points to experience
+
+            // Level up if enough experience points are earned
+            if (_experiencePoints >= _level * 10) // Assuming 10 XP needed per level
+            {
+                _level++;
+                Console.WriteLine($"Congratulations! You've leveled up to Level {_level}!");
+            }
         }
         else
         {
             Console.WriteLine("Invalid goal selection.");
         }
     }
-
-    public void ViewEventLog()
-    {
-        Console.WriteLine("Event Log:");
-        foreach (var entry in _log)
-        {
-            Console.WriteLine(entry);
-        }
-    }
 }
 
-// Base class for all goals
 public abstract class Goal
 {
-    public string Name { get; set; }
-    public string Description { get; set; }
-    public int Points { get; set; }
+    protected string _shortName;
+    protected string _description;
+    protected int _points;
 
     public Goal(string name, string description, int points)
     {
-        Name = name;
-        Description = description;
-        Points = points;
+        _shortName = name;
+        _description = description;
+        _points = points;
     }
 
     public abstract void RecordEvent();
-    public abstract string GetDetailsString();
-    public abstract string GetStringRepresentation();
     public abstract bool IsComplete();
+    public abstract string GetStringRepresentation();
+    public virtual string GetDetailsString()
+    {
+        return $"{(IsComplete() ? "[X]" : "[ ]")} {_shortName} - {_description} : {_points} points";
+    }
+
+    public int Points => _points;
 }
 
-// Simple goal implementation
 public class SimpleGoal : Goal
 {
     private bool _isComplete;
@@ -249,50 +273,51 @@ public class SimpleGoal : Goal
 
     public override void RecordEvent()
     {
-        _isComplete = true;
-    }
-
-    public override string GetDetailsString()
-    {
-        return $"{Name} - {Description} | Points: {Points} | Completed: {_isComplete}";
-    }
-
-    public override string GetStringRepresentation()
-    {
-        return $"SimpleGoal|{Name}|{Description}|{Points}|{_isComplete}";
+        if (!_isComplete)
+        {
+            _isComplete = true;
+            Console.WriteLine($"{_shortName} completed! +{_points} points.");
+        }
+        else
+        {
+            Console.WriteLine($"{_shortName} is already complete.");
+        }
     }
 
     public override bool IsComplete()
     {
         return _isComplete;
     }
-}
-
-// Eternal goal implementation
-public class EternalGoal : Goal
-{
-    public EternalGoal(string name, string description, int points)
-        : base(name, description, points) { }
-
-    public override void RecordEvent() { /* No completion state */ }
-
-    public override string GetDetailsString()
-    {
-        return $"{Name} - {Description} | Points per event: {Points} | Eternal Goal";
-    }
 
     public override string GetStringRepresentation()
     {
-        return $"EternalGoal|{Name}|{Description}|{Points}";
+        return $"SimpleGoal|{_shortName}|{_description}|{_points}|{_isComplete}";
+    }
+}
+
+public class EternalGoal : Goal
+{
+    public EternalGoal(string name, string description, int points)
+        : base(name, description, points)
+    {
+    }
+
+    public override void RecordEvent()
+    {
+        Console.WriteLine($"Eternal goal '{_shortName}' completed! +{_points} points.");
     }
 
     public override bool IsComplete()
     {
-        return false; // Always incomplete
+        return false; // Eternal goals never complete
+    }
+
+    public override string GetStringRepresentation()
+    {
+        return $"EternalGoal|{_shortName}|{_description}|{_points}";
     }
 }
 
-// Checklist goal implementation
 public class ChecklistGoal : Goal
 {
     private int _amountCompleted;
@@ -302,31 +327,84 @@ public class ChecklistGoal : Goal
     public ChecklistGoal(string name, string description, int points, int target, int bonus, int amountCompleted = 0)
         : base(name, description, points)
     {
+        _amountCompleted = amountCompleted;
         _target = target;
         _bonus = bonus;
-        _amountCompleted = amountCompleted;
     }
 
     public override void RecordEvent()
     {
-        _amountCompleted++;
-        if (_amountCompleted >= _target)
+        if (_amountCompleted < _target)
         {
-            Points += _bonus;
+            _amountCompleted++;
+            int totalPoints = _amountCompleted == _target ? _points + _bonus : _points;
+            Console.WriteLine($"Goal '{_shortName}' updated: {_amountCompleted}/{_target}. +{totalPoints} points.");
         }
-    }
-
-    public override string GetDetailsString()
-    {
-        return $"{Name} - {Description} | Points per completion: {Points} | " +
-               $"Completions: {_amountCompleted}/{_target} | Bonus: {_bonus}";
-    }
-
-    public override string GetStringRepresentation()
-    {
-        return $"ChecklistGoal|{Name}|{Description}|{Points}|{_amountCompleted}|{_target}|{_bonus}";
+        else
+        {
+            Console.WriteLine($"Goal '{_shortName}' is already completed.");
+        }
     }
 
     public override bool IsComplete()
     {
-        return _amount
+        return _amountCompleted >= _target;
+    }
+
+    public override string GetStringRepresentation()
+    {
+        return $"ChecklistGoal|{_shortName}|{_description}|{_points}|{_amountCompleted}|{_target}|{_bonus}";
+    }
+}
+
+public class NegativeGoal : Goal
+{
+    private int _penalty;
+
+    public NegativeGoal(string name, string description, int points, int penalty)
+        : base(name, description, points)
+    {
+        _penalty = penalty;
+    }
+
+    public override void RecordEvent()
+    {
+        Console.WriteLine($"Negative goal '{_shortName}' triggered! -{_penalty} points.");
+    }
+
+    public override bool IsComplete()
+    {
+        return false; // Negative goals don't complete
+    }
+
+    public override string GetStringRepresentation()
+    {
+        return $"NegativeGoal|{_shortName}|{_description}|{_points}|{_penalty}";
+    }
+}
+
+public class LargeGoal : Goal
+{
+    private int _targetPoints;
+
+    public LargeGoal(string name, string description, int points, int targetPoints)
+        : base(name, description, points)
+    {
+        _targetPoints = targetPoints;
+    }
+
+    public override void RecordEvent()
+    {
+        Console.WriteLine($"Large goal '{_shortName}' achieved! +{_points} points.");
+    }
+
+    public override bool IsComplete()
+    {
+        return false; // Large goals can be ongoing
+    }
+
+    public override string GetStringRepresentation()
+    {
+        return $"LargeGoal|{_shortName}|{_description}|{_points}|{_targetPoints}";
+    }
+}
